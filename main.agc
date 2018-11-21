@@ -3,7 +3,7 @@
 
 #option_explicit
 
-SetErrorMode(0)
+SetErrorMode(2)
 
 #include "gui.agc"
 // #include "game.agc"
