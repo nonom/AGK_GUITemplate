@@ -15,7 +15,7 @@
 // Waiting a new state
 #constant GUI_READY = 999
 
-#constant GUI_CONTROL_TYPE_BUTTON = 1
+#constant GUI_CONTROL_TYPE_SPRITE = 1
 #constant GUI_CONTROL_TYPE_TEXT = 2
 
 // Events types
@@ -115,10 +115,6 @@ type tGUI_Event
   _type as integer
   callback as integer
   value as integer
-endtype
-
-type tGame
-  but as integer[]
 endtype
 
 global GUI_Screen         as tGUI_Screen
@@ -455,16 +451,12 @@ function GUI_DrawLayer(scene as integer, layer as integer)
     local a as integer
     local i as integer
     for i = 0 to GUI_Screen.scenes[scene].layers[layer].controls.length
-      select GUI_Screen.scenes[scene].layers[layer].controls[i]._type
-        case GUI_CONTROL_TYPE_BUTTON
-          SetSpritePosition ( GUI_Screen.scenes[scene].layers[layer].controls[i].sprite, GUI_Screen.scenes[scene].layers[0].controls[i].x1, GUI_Screen.scenes[scene].layers[0].controls[i].y1 )
-          SetSpriteDepth    ( GUI_Screen.scenes[scene].layers[layer].controls[i].sprite, GUI_DEPTH_SCREEN_LAYER )
-        endcase
-        case GUI_CONTROL_TYPE_TEXT
+        SetSpritePosition ( GUI_Screen.scenes[scene].layers[layer].controls[i].sprite, GUI_Screen.scenes[scene].layers[0].controls[i].x1, GUI_Screen.scenes[scene].layers[0].controls[i].y1 )
+        SetSpriteDepth    ( GUI_Screen.scenes[scene].layers[layer].controls[i].sprite, GUI_DEPTH_SCREEN_LAYER )
+        if GUI_Screen.scenes[scene].layers[layer].controls[i].text > 0
           SetTextPosition ( GUI_Screen.scenes[scene].layers[layer].controls[i].text, GUI_Screen.scenes[scene].layers[0].controls[i].x1, GUI_Screen.scenes[scene].layers[0].controls[i].y1 )
           SetTextDepth    ( GUI_Screen.scenes[scene].layers[layer].controls[i].text, GUI_DEPTH_SCREEN_LAYER )
-        endcase
-      endselect
+        endif
     next i
 endfunction
 
@@ -475,8 +467,12 @@ endfunction
  * **********************************************
 */
 function GUI_ResetLayer(scene as integer, layer as integer, state as integer)
-  local a as integer
+  local depth as integer = GUI_DEPTH_SCREEN_DEEP
+  if state
+    depth = GUI_DEPTH_SCREEN_LAYER
+  endif
   local i as integer
+  GUI_Screen.scenes[scene].layers[layer].depth = depth
   for i = 0 to GUI_Screen.scenes[scene].layers[layer].controls.length
     GUI_ResetControl ( GUI_Screen.scenes[scene].layers[layer].controls[i] , state )
   next i
@@ -493,7 +489,7 @@ function GUI_DrawControl(control as tGUI_Control)
   control.id = GUI_CreateUniqueId()
 
   select control._type
-    case GUI_CONTROL_TYPE_BUTTON
+    case GUI_CONTROL_TYPE_SPRITE
       
       control.sound = GUI_DefaultSoundId
       
@@ -529,6 +525,14 @@ function GUI_DrawControl(control as tGUI_Control)
       SetSpriteVisible ( control.sprite, control.visible )
     endcase
     case GUI_CONTROL_TYPE_TEXT
+      // Since we havent GetTextHit() support, is needed to wrap 
+      // the text with a transparent sprite to edit the text position
+      // More info: https://forum.thegamecreators.com/thread/218640
+      control.sprite = CreateSprite(0)
+      SetSpriteSize    ( control.sprite, control.width, control.height )
+      SetSpriteActive  ( control.sprite, control.active )
+      SetSpriteVisible ( control.sprite, control.visible )
+      SetSpriteColorAlpha (control.sprite, 0)
       control.text = CreateText(control.desc)
       SetTextPosition(control.text, control.x1, control.y1)
       SetTextSize(control.text, 24)
@@ -616,25 +620,21 @@ endfunction control
  * **********************************************
 */
 function GUI_ResetControl (control as tGUI_Control, state as integer)
-  select control._type
-    case GUI_CONTROL_TYPE_BUTTON
-      SetSpriteActive  ( control.sprite, state )
-      SetSpriteVisible ( control.sprite, state )
-      if not state
-        SetSpriteDepth   ( control.sprite, GUI_DEPTH_SCREEN_BACKGROUND )
-      else
-        SetSpriteDepth   ( control.sprite, GUI_DEPTH_SCREEN_CONTROLS )
-      endif
-    endcase
-    case GUI_CONTROL_TYPE_TEXT
+    SetSpriteActive  ( control.sprite, state )
+    SetSpriteVisible ( control.sprite, state )
+    if not state
+      SetSpriteDepth   ( control.sprite, GUI_DEPTH_SCREEN_BACKGROUND )
+    else
+      SetSpriteDepth   ( control.sprite, GUI_DEPTH_SCREEN_CONTROLS )
+    endif
+    if control._type = GUI_CONTROL_TYPE_TEXT
       SetTextVisible (control.text, state)
       if not state
         SetTextDepth   ( control.text, GUI_DEPTH_SCREEN_BACKGROUND )
       else
         SetTextDepth   ( control.text, GUI_DEPTH_SCREEN_CONTROLS )
       endif
-    endcase
-  endselect
+    endif
 endfunction control
 
 
@@ -808,8 +808,8 @@ endfunction
  * **********************************************
 */
 function GUI_EditHandler(screen as tGUI_Screen)
-  // From: https://forum.thegamecreators.com/thread/191730#msg2286445
   Print("Editing")
+  // Credits here goes for baxslash : https://forum.thegamecreators.com/thread/191730#msg2286445
   if getPointerPressed() = 1
     local GUI_hit as integer
     GUI_hit = GetSPriteHit(getPointerX(), getPointerY())
@@ -824,12 +824,16 @@ function GUI_EditHandler(screen as tGUI_Screen)
       if getPointerState() > 0
         GUI_cX = GetPointerX()
         GUI_cY = GetPointerY()
+        control = GUI_GetControlBySprite(GUI_controlPicked)
         SetSpritePosition(GUI_controlPicked,GUI_pX,GUI_pY)
-        // SetSpritePosition(GUI_controlPicked,GetSpriteX(GUI_controlPicked)+GUI_cX-GUI_pX,getSpriteY(GUI_controlPicked)+GUI_cY-GUI_pY)
+        if control.text > 0
+          SetTextPosition(control.text, GUI_pX, GUI_pY)
+        endif
         GUI_pX = GUI_cX
         GUI_pY = GUI_cY
-        control = GUI_GetControlBySprite(GUI_controlPicked)
-        DrawBox(GUI_pX, GUI_pY, GUI_pX + control.width, GUI_pY + control.height, MakeColor(0,255,0), MakeColor(0,255,0), MakeColor(0,255,0), MakeColor(0,255,0), 0)
+        local color as integer
+        color = MakeColor(0,255,0)
+        DrawBox(GUI_pX, GUI_pY, GUI_pX + control.width, GUI_pY + control.height, color, color, color, color, 0)
       else
         control = GUI_GetControlBySprite(GUI_controlPicked)
         local i as integer
@@ -838,6 +842,9 @@ function GUI_EditHandler(screen as tGUI_Screen)
             screen.scenes[GUI_State.scene].layers[GUI_State.layer].controls[i].x1 = GUI_pX
             screen.scenes[GUI_State.scene].layers[GUI_State.layer].controls[i].y1 = GUI_pY
             SetSpritePosition(GUI_controlPicked, GUI_pX, GUI_pY)
+            if screen.scenes[GUI_State.scene].layers[GUI_State.layer].controls[i].text > 0
+              SetTextPosition(screen.scenes[GUI_State.scene].layers[GUI_State.layer].controls[i].text, GUI_pX, GUI_pY)
+            endif
           endif
         next i
         GUI_controlPicked = 0
