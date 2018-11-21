@@ -370,6 +370,7 @@ endfunction uid
 */
 function GUI_SpriteCheck (sprite as integer)
   local result as integer = 0
+  if sprite = 0 then exitfunction 0
   if GetSpriteActive(sprite) = 1 and GetSpriteVisible(sprite) = 1 and sprite > 100000 // Only auto-generated ids
     local i as integer
     for i = 0 to GUI_Screen.scenes[GUI_State.scene].layers[GUI_State.layer].controls.length
