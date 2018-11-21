@@ -14,6 +14,7 @@
 // Waiting a new state
 #constant GUI_READY = 999
 
+// GUI Controls
 #constant GUI_CONTROL_TYPE_SPRITE = 1
 #constant GUI_CONTROL_TYPE_TEXT = 2
 
@@ -84,15 +85,14 @@ type tGUI_Control
   parent as integer
   scene as integer
   group as integer
-  x1 as integer
-  y1 as integer
-  x2 as integer
-  y2 as integer
+  x as integer
+  y as integer
   width as integer
   height as integer
   depth as integer
   sprite as integer
   text as integer
+  size as integer
   image as integer
   sound as integer
   tween as integer
@@ -156,11 +156,7 @@ function GUI_Init()
   GUI_DefaultSoundId = LoadSoundOGG("click.ogg")
   GUI_DefaultImageId = LoadImage("blank.png")
 
-  if GetFileExists(GUI_SAVED_JSON_FILE)
-    GUI_Screen = GUI_LoadScreen(GUI_SAVED_JSON_FILE)
-  else
-    GUI_Screen = GUI_CreateScreen(GUI_NAME)
-  endif
+  GUI_Screen = GUI_CreateScreen(GUI_NAME, GetFileExists(GUI_SAVED_JSON_FILE))
 
   CreateSprite  ( GUI_BG_SPRITE, GUI_Screen.sprite)
   SetSpriteSize ( GUI_BG_SPRITE, GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT )
@@ -245,44 +241,36 @@ endfunction
  * Creates the main screen and adds a default scene
  * ************************************************
 */
-function GUI_CreateScreen(name as string)
+function GUI_CreateScreen(name as string, fromJSON as integer)
   local screen as tGUI_Screen
+  if fromJSON
+    local json_string as string
+    json_string = GUI_loadJSON(GUI_SAVED_JSON_FILE)
+    screen.fromJSON( json_string )
+  else
+    // Get the data  from the local txt files
+    screen = GUI_LoadScenes   ( screen, "gui_scenes.txt"   )
+    screen = GUI_LoadControls ( screen, "gui_controls.txt" )
+  endif
   screen.name   = name
   screen.theme  = LoadMusicOGG("theme.ogg")
   screen.sprite = LoadImage ("bg.png")
-  screen.name = name
-  screen.scenes = GUI_LoadScenes   ( "gui_scenes.txt"   )
-  screen = GUI_LoadControls( screen, "gui_controls.txt" )
+  screen = GUI_InitialiseControls(screen)
 endfunction screen
+
 
 /* 
  * ************************************************
- * GUI_LoadScreen
- * Loads the saved main screen and adds a default scene
+ * GUI_InitialiseControls
+ * 
  * ************************************************
 */
-function GUI_LoadScreen(f as string)
-  local json_string as string
-  json_string = GUI_loadJSON(f)
-  local screen as tGUI_Screen 
-  screen.fromJSON( json_string )
-  screen.theme  = LoadMusicOGG("theme.ogg")
-  screen.sprite = LoadImage ("bg.png")
-  screen = GUI_ReloadControls(screen)
-endfunction screen
-
-/* 
- * ************************************************
- * GUI_ReloadControls
- * A bit redundant but needed at the moment
- * ************************************************
-*/
-function GUI_ReloadControls(screen as tGUI_Screen)
+function GUI_InitialiseControls(screen as tGUI_Screen)
     local i as integer
     local j as integer
     for i = 0 to screen.scenes.length
       for j = 0 to screen.scenes[i].layers[GUI_State.layer].controls.length
-        GUI_DrawControl(screen.scenes[i].layers[GUI_State.layer].controls[j])
+        GUI_InitialiseControl(screen.scenes[i].layers[GUI_State.layer].controls[j])
       next j
     next i
 endfunction screen
@@ -450,10 +438,10 @@ function GUI_DrawLayer(scene as integer, layer as integer)
     local a as integer
     local i as integer
     for i = 0 to GUI_Screen.scenes[scene].layers[layer].controls.length
-        SetSpritePosition ( GUI_Screen.scenes[scene].layers[layer].controls[i].sprite, GUI_Screen.scenes[scene].layers[0].controls[i].x1, GUI_Screen.scenes[scene].layers[0].controls[i].y1 )
+        SetSpritePosition ( GUI_Screen.scenes[scene].layers[layer].controls[i].sprite, GUI_Screen.scenes[scene].layers[0].controls[i].x, GUI_Screen.scenes[scene].layers[0].controls[i].y )
         SetSpriteDepth    ( GUI_Screen.scenes[scene].layers[layer].controls[i].sprite, GUI_DEPTH_SCREEN_LAYER )
         if GUI_Screen.scenes[scene].layers[layer].controls[i].text > 0
-          SetTextPosition ( GUI_Screen.scenes[scene].layers[layer].controls[i].text, GUI_Screen.scenes[scene].layers[0].controls[i].x1, GUI_Screen.scenes[scene].layers[0].controls[i].y1 )
+          SetTextPosition ( GUI_Screen.scenes[scene].layers[layer].controls[i].text, GUI_Screen.scenes[scene].layers[0].controls[i].x, GUI_Screen.scenes[scene].layers[0].controls[i].y )
           SetTextDepth    ( GUI_Screen.scenes[scene].layers[layer].controls[i].text, GUI_DEPTH_SCREEN_LAYER )
         endif
     next i
@@ -479,17 +467,16 @@ endfunction
 
 /* 
  * **********************************************
- * GUI_DrawControl
- * Draw the control depending the type
+ * GUI_InitialiseControl
+ * Initialises the control inactive until needed
  * **********************************************
 */
-function GUI_DrawControl(control as tGUI_Control)
+function GUI_InitialiseControl(control as tGUI_Control)
   
   control.id = GUI_CreateUniqueId()
 
   select control._type
     case GUI_CONTROL_TYPE_SPRITE
-      
       control.sound = GUI_DefaultSoundId
       
       if control.label = ""
@@ -523,6 +510,7 @@ function GUI_DrawControl(control as tGUI_Control)
       
       SetSpriteActive  ( control.sprite, control.active )
       SetSpriteVisible ( control.sprite, control.visible )
+      SetSPriteDepth   ( control.sprite, GUI_DEPTH_SCREEN_DEEP)
     endcase
     case GUI_CONTROL_TYPE_TEXT
       // Since we havent GetTextHit() support, is needed to wrap 
@@ -531,20 +519,17 @@ function GUI_DrawControl(control as tGUI_Control)
       control.sprite = CreateSprite(0)
       FixSpriteToScreen(control.sprite, 1)
       SetSpriteSize    ( control.sprite, control.width, control.height )
+      SetSpriteColorAlpha (control.sprite, 0)
       SetSpriteActive  ( control.sprite, control.active )
       SetSpriteVisible ( control.sprite, control.visible )
-      SetSpriteColorAlpha (control.sprite, 0)
       control.text = CreateText(control.desc)
       FixTextToScreen(control.text, 1)
-      SetTextPosition(control.text, control.x1, control.y1)
-      SetTextSize(control.text, 24)
+      SetTextPosition(control.text, control.x, control.y)
+      SetTextSize(control.text, control.size)
       SetTextColor(control.text, 30, 110, 120, 255)
-      SetTextVisible ( control.text, control.active )
+      SetTextVisible ( control.text, control.visible )
     endcase
   endselect
-  
-  control.active = 0
-  control.visible = 0 
 
   control.fgcolor = MakeColor( 255, 255, 255 )
   control.bgcolor = MakeColor( 0  , 255, 0   )
@@ -559,22 +544,21 @@ endfunction control
  * Creates a control and retuns his definition
  * **********************************************
 */
-function GUI_CreateControl(_type as integer, s as integer, l as integer, e as integer, c as integer, v as integer, 
-  label as string, desc as string, x1 as integer, y1 as integer, x2 as integer, y2 as integer, w as integer, h as integer)
+function GUI_CreateControl(_type as integer, parent as integer, s as integer, l as integer, e as integer, c as integer, v as integer, label as string, fs as integer, desc as string, x as integer, y as integer, w as integer, h as integer)
   control as tGUI_Control
   control._type = _type
+  control.parent = parent
   control.label = label
   control.desc = desc
   control.group = _type 
-  control.x1 = x1
-  control.y1 = y1
-  control.x2 = x2
-  control.y2 = y2
+  control.x = x
+  control.y = y
   control.width = w
   control.height = h
   control.active = 0
   control.visible = 0
-  control = GUI_DrawControl(control)
+  control.size = fs
+  control = GUI_InitialiseControl(control)
   
   local event as tGUI_Event
   event._type = e
@@ -646,7 +630,7 @@ endfunction control
  * Scenes local loader for dev purposes
  * **********************************************
 */
-Function GUI_LoadScenes(file$ as string)
+Function GUI_LoadScenes(screen as tGUI_Screen, file$ as string)
   local dl$ as string = "|"
   local scenes as tGUI_Scene[]
   local dataFile as integer
@@ -660,10 +644,10 @@ Function GUI_LoadScenes(file$ as string)
     int1 = Val(GetStringToken(dtl$, dl$, 1))
     str1 = GetStringToken(dtl$, dl$, 2)
     scene = GUI_CreateScene(int1, str1)
-    scenes.insert(scene)
+    screen.scenes.insert(scene)
     dtl$ = ReadLine(dataFile)
   endwhile
-Endfunction scenes 
+Endfunction screen 
 
 /* 
  * **********************************************
@@ -685,30 +669,30 @@ Function GUI_LoadControls(screen as tGUI_Screen, file$ as string)
     local int4 as integer
     local int5 as integer
     local int6 as integer
-    local str7 as string
+    local int7 as integer
     local str8 as string
     local int9 as integer
-    local int10 as integer
+    local str10 as string
     local int11 as integer
     local int12 as integer
     local int13 as integer
     local int14 as integer
-    int1 = Val(GetStringToken(dtl$, dl$, 1))   // control_type
-    int2 = Val(GetStringToken(dtl$, dl$, 2))   // scene
-    int3 = Val(GetStringToken(dtl$, dl$, 3))   // layer
-    int4 = Val(GetStringToken(dtl$, dl$, 4))   // event
-    int5 = Val(GetStringToken(dtl$, dl$, 5))   // callback
-    int6 = Val(GetStringToken(dtl$, dl$, 6))   // value
-    str7 = GetStringToken(dtl$, dl$, 7)        // label
-    str8 = GetStringToken(dtl$, dl$, 8)        // tooltip
-    int9 = Val(GetStringToken(dtl$, dl$, 9))   // x1
-    int10 = Val(GetStringToken(dtl$, dl$, 10)) // y1
-    int11 = Val(GetStringToken(dtl$, dl$, 11)) // x2
-    int12 = Val(GetStringToken(dtl$, dl$, 12)) // y2
-    int13 = Val(GetStringToken(dtl$, dl$, 13)) // width
-    int14 = Val(GetStringToken(dtl$, dl$, 14)) // height
-    control = GUI_CreateControl( int1, int2, int3, int4, int5, int6, str7, str8, int9, int10, int11, int12, int13, int14)
-    screen.scenes[int2].layers[int3].controls.insert(control)
+    int1  = Val(GetStringToken(dtl$, dl$, 1))   // control_type
+    int2  = Val(GetStringToken(dtl$, dl$, 2))   // parent
+    int3  = Val(GetStringToken(dtl$, dl$, 3))   // scene
+    int4  = Val(GetStringToken(dtl$, dl$, 4))   // layer
+    int5  = Val(GetStringToken(dtl$, dl$, 5))   // event type
+    int6  = Val(GetStringToken(dtl$, dl$, 6))   // callback
+    int7  = Val(GetStringToken(dtl$, dl$, 7))   // value
+    str8  = GetStringToken(dtl$, dl$, 8)        // label
+    int9  = Val(GetStringToken(dtl$, dl$, 9))   // fontsize
+    str10 = GetStringToken(dtl$, dl$, 10)       // tooltip
+    int11 = Val(GetStringToken(dtl$, dl$, 11))  // x
+    int12 = Val(GetStringToken(dtl$, dl$, 12))  // y
+    int13 = Val(GetStringToken(dtl$, dl$, 13))  // width
+    int14 = Val(GetStringToken(dtl$, dl$, 14))  // height
+    control = GUI_CreateControl( int1, int2, int3, int4, int5, int6, int7, str8, int9, str10, int11, int12, int13, int14)
+    screen.scenes[int3].layers[int4].controls.insert(control)
     dtl$ = ReadLine(dataFile)
   endwhile
 Endfunction screen
@@ -842,8 +826,8 @@ function GUI_EditHandler(screen as tGUI_Screen)
         local i as integer
         for i = 0 to screen.scenes[GUI_State.scene].layers[GUI_State.layer].controls.length
           if GUI_controlPicked = screen.scenes[GUI_State.scene].layers[GUI_State.layer].controls[i].sprite
-            screen.scenes[GUI_State.scene].layers[GUI_State.layer].controls[i].x1 = GUI_pX
-            screen.scenes[GUI_State.scene].layers[GUI_State.layer].controls[i].y1 = GUI_pY
+            screen.scenes[GUI_State.scene].layers[GUI_State.layer].controls[i].x = GUI_pX
+            screen.scenes[GUI_State.scene].layers[GUI_State.layer].controls[i].y = GUI_pY
             SetSpritePosition(GUI_controlPicked, GUI_pX, GUI_pY)
             if screen.scenes[GUI_State.scene].layers[GUI_State.layer].controls[i].text > 0
               SetTextPosition(screen.scenes[GUI_State.scene].layers[GUI_State.layer].controls[i].text, GUI_pX, GUI_pY)
@@ -861,4 +845,4 @@ function GUI_EditHandler(screen as tGUI_Screen)
   endif
 endfunction screen
 
-
+// 1|1|0|0|1|1|0|window|12|A window example|20|20|200|355
