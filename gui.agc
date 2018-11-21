@@ -455,9 +455,7 @@ endfunction
 */
 function GUI_ResetLayer(scene as integer, layer as integer, state as integer)
   local depth as integer = GUI_DEPTH_SCREEN_DEEP
-  if state
-    depth = GUI_DEPTH_SCREEN_LAYER
-  endif
+  if state then depth = GUI_DEPTH_SCREEN_LAYER
   local i as integer
   GUI_Screen.scenes[scene].layers[layer].depth = depth
   for i = 0 to GUI_Screen.scenes[scene].layers[layer].controls.length
@@ -608,19 +606,17 @@ endfunction control
 function GUI_ResetControl (control as tGUI_Control, state as integer)
     SetSpriteActive  ( control.sprite, state )
     SetSpriteVisible ( control.sprite, state )
-    if not state
-      SetSpriteDepth   ( control.sprite, GUI_DEPTH_SCREEN_BACKGROUND )
-    else
-      SetSpriteDepth   ( control.sprite, GUI_DEPTH_SCREEN_CONTROLS )
-    endif
+    SetSpriteDepth   ( control.sprite, GUI_DEPTH_SCREEN_CONTROLS )
+    if not state then SetSpriteDepth ( control.sprite, GUI_DEPTH_SCREEN_DEEP )
+    control.depth = GUI_DEPTH_SCREEN_DEEP
     if control._type = GUI_CONTROL_TYPE_TEXT
       SetTextVisible (control.text, state)
-      if not state
-        SetTextDepth   ( control.text, GUI_DEPTH_SCREEN_BACKGROUND )
-      else
-        SetTextDepth   ( control.text, GUI_DEPTH_SCREEN_CONTROLS )
-      endif
+      SetTextDepth   ( control.text, GUI_DEPTH_SCREEN_CONTROLS )
+      control.depth = GUI_DEPTH_SCREEN_CONTROLS
+      if not state then SetTextDepth ( control.text, GUI_DEPTH_SCREEN_DEEP )
     endif
+    control.active = state
+    control.visible = state
 endfunction control
 
 
