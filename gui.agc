@@ -17,7 +17,6 @@
 
 #constant GUI_CONTROL_TYPE_BUTTON = 1
 #constant GUI_CONTROL_TYPE_TEXT = 2
-#constant GUI_CONTROL_TYPE_WINDOW = 3
 
 // Events types
 #constant GUI_EVENT_CLICK = 1
@@ -107,10 +106,6 @@ type tGUI_Control
   holder as tGUI_Holder
 endtype
 
-type tGUI_Navigation
-  screens as tGUI_Screen[]
-endtype
-
 type tGUI_State
   layer as integer
   scene as integer
@@ -128,7 +123,6 @@ endtype
 
 global GUI_Screen         as tGUI_Screen
 global GUI_Controls       as tGUI_Control[]
-global GUI_Navigation     as tGUI_Navigation
 global GUI_State          as tGUI_State
 global GUI_Uuid           as integer[]
 
@@ -188,8 +182,6 @@ function GUI_Init()
     AddVirtualButton ( 1, GUI_SCREEN_WIDTH - 25,  25, 20 )
     AddVirtualButton ( 2, GUI_SCREEN_WIDTH - 25,  50, 20 )
     AddVirtualButton ( 3, GUI_SCREEN_WIDTH - 25,  75, 20 )
-    AddVirtualButton ( 4, GUI_SCREEN_WIDTH - 25, 125, 20 )
-    AddVirtualButton ( 5, GUI_SCREEN_WIDTH - 25, 150, 20 )
   endif
 endfunction
 
@@ -228,14 +220,6 @@ function GUI_Update()
       if GetFileExists(GUI_SAVED_JSON_FILE)
         DeleteFile(GUI_SAVED_JSON_FILE)
         Message("Deleted stored config")
-      endif
-    endif
-    if GetVirtualButtonState(4) = 1
-      StartScreenRecording( "record.mpg", 0 ) 
-    endif
-    if GetVirtualButtonState(5) = 1
-      if IsScreenRecording()
-        StopScreenRecording()
       endif
     endif
 endfunction
@@ -470,8 +454,16 @@ function GUI_DrawLayer(scene as integer, layer as integer)
     local a as integer
     local i as integer
     for i = 0 to GUI_Screen.scenes[scene].layers[layer].controls.length
-      SetSpritePosition ( GUI_Screen.scenes[scene].layers[layer].controls[i].sprite, GUI_Screen.scenes[scene].layers[0].controls[i].x1, GUI_Screen.scenes[scene].layers[0].controls[i].y1 )
-      SetSpriteDepth    ( GUI_Screen.scenes[scene].layers[layer].controls[i].sprite, GUI_DEPTH_SCREEN_LAYER )
+      select GUI_Screen.scenes[scene].layers[layer].controls[i]._type
+        case GUI_CONTROL_TYPE_BUTTON
+          SetSpritePosition ( GUI_Screen.scenes[scene].layers[layer].controls[i].sprite, GUI_Screen.scenes[scene].layers[0].controls[i].x1, GUI_Screen.scenes[scene].layers[0].controls[i].y1 )
+          SetSpriteDepth    ( GUI_Screen.scenes[scene].layers[layer].controls[i].sprite, GUI_DEPTH_SCREEN_LAYER )
+        endcase
+        case GUI_CONTROL_TYPE_TEXT
+          SetTextPosition ( GUI_Screen.scenes[scene].layers[layer].controls[i].text, GUI_Screen.scenes[scene].layers[0].controls[i].x1, GUI_Screen.scenes[scene].layers[0].controls[i].y1 )
+          SetTextDepth    ( GUI_Screen.scenes[scene].layers[layer].controls[i].text, GUI_DEPTH_SCREEN_LAYER )
+        endcase
+      endselect
     next i
 endfunction
 
@@ -498,17 +490,17 @@ endfunction
 function GUI_DrawControl(control as tGUI_Control)
   
   control.id = GUI_CreateUniqueId()
-    
-  if control.label = ""
-    control.image = GUI_DefaultImageId
-  else
-    control.image = LoadImage( control.label + ".png")
-  endif
-  
-  control.sound = GUI_DefaultSoundId
-  
+
   select control._type
     case GUI_CONTROL_TYPE_BUTTON
+      
+      control.sound = GUI_DefaultSoundId
+      
+      if control.label = ""
+        control.image = GUI_DefaultImageId
+      else
+        control.image = LoadImage( control.label + ".png")
+      endif
       
       if(GetFileExists(control.label + ".ogg"))
         //~ Log("Loaded file " + control.label + ".ogg")
