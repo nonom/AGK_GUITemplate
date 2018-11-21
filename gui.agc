@@ -1,4 +1,3 @@
-#option_explicit
 /* 
  * **********************************************
  * Constants
@@ -165,8 +164,8 @@ function GUI_Init()
 
   CreateSprite  ( GUI_BG_SPRITE, GUI_Screen.sprite)
   SetSpriteSize ( GUI_BG_SPRITE, GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT )
-
-  GUI_Initialise (GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT, GUI_Screen.name, 0, 0)
+  FixSpriteToScreen (GUI_BG_SPRITE, 1)
+  GUI_Initialise (GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT, GUI_Screen.name, 0)
 
   if GUI_PlayingMusic = 1 then PlayMusicOGG( GUI_Screen.theme, 2)
 
@@ -505,6 +504,7 @@ function GUI_DrawControl(control as tGUI_Control)
       endif
       
       control.sprite = CreateSprite(control.image)
+      FixSpriteToScreen(control.sprite, 1)
       SetSpriteImage ( control.sprite, control.image )
       
       control.depth = GUI_DEPTH_SCREEN_DEEP
@@ -529,11 +529,13 @@ function GUI_DrawControl(control as tGUI_Control)
       // the text with a transparent sprite to edit the text position
       // More info: https://forum.thegamecreators.com/thread/218640
       control.sprite = CreateSprite(0)
+      FixSpriteToScreen(control.sprite, 1)
       SetSpriteSize    ( control.sprite, control.width, control.height )
       SetSpriteActive  ( control.sprite, control.active )
       SetSpriteVisible ( control.sprite, control.visible )
       SetSpriteColorAlpha (control.sprite, 0)
       control.text = CreateText(control.desc)
+      FixTextToScreen(control.text, 1)
       SetTextPosition(control.text, control.x1, control.y1)
       SetTextSize(control.text, 24)
       SetTextColor(control.text, 30, 110, 120, 255)
@@ -731,7 +733,7 @@ endfunction JSON$
  * Initialise the screen in a wrapper
  * **********************************************
 */
-function GUI_Initialise(w as integer, h as integer, t as string, c as integer,  r as integer)
+function GUI_Initialise(w as integer, h as integer, t as string, c as integer)
 	// If no size given, use full screen
 	if w = 0 or h = 0
 		SetWindowSize(0,0,1)
@@ -747,7 +749,7 @@ function GUI_Initialise(w as integer, h as integer, t as string, c as integer,  
 	SetClearColor((c&&0xFF0000)>>16,(c&&0xFF00)>>8,c&&0xFF)
 	ClearScreen()
 	// Set orientations allowed
-	SetOrientationAllowed((r&&%1000)>>3,(r&&100)>>2, (r&&10)>>1, r&&1)
+	SetOrientationAllowed(1,0, 0,0)
   // allow the user to resize the window
   SetWindowAllowResize( 1 ) 
   // 30fps instead of 60 to save battery
@@ -769,6 +771,7 @@ Endfunction
 Function GUI_ShowSplashScreen(f as string)
   GUI_Splash_image = LoadImage(f)
 	GUI_Splash_sprite = CreateSprite(GUI_Splash_image)
+  FixSpriteToScreen(GUI_Splash_sprite, 1)
 	SetSpriteSize(GUI_Splash_sprite, GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT) // FIXME
 	Sync()
 Endfunction
