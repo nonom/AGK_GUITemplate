@@ -51,7 +51,7 @@ FILE_1=gui.agc;-1
 
 [files]
 FILE_NAME_0=0;main.agc;0;0
-FILE_NAME_1=1;gui.agc;8;1
+FILE_NAME_1=1;gui.agc;0;1
 
 [project]
 description=

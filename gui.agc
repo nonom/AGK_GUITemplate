@@ -253,7 +253,7 @@ endfunction
 function GUI_CreateScreen(name as string)
   local screen as tGUI_Screen
   screen.name   = name
-  screen.theme  = LoadMusicOGG("theme.ogg") // LoadMusicOGG
+  screen.theme  = LoadMusicOGG("theme.ogg")
   screen.sprite = LoadImage ("bg.png")
   screen.name = name
   screen.scenes = GUI_LoadScenes   ( "gui_scenes.txt"   )
