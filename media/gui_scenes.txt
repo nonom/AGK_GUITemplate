@@ -1,4 +1,4 @@
-0|menu
-1|animal
-2|song
-3|credits
+0|menu|bg
+1|animal|bg1
+2|song|bg2
+3|credits|bg3

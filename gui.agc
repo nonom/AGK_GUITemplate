@@ -10,6 +10,9 @@
 #constant GUI_SCREEN_HEIGHT = 533
 
 #constant GUI_BG_SPRITE = 1
+#constant GUI_SPLASH_SPRITE = 2
+
+#constant GUI_SPLASH_IMAGE = 1
 
 // Waiting a new state
 #constant GUI_READY = 999
@@ -56,7 +59,6 @@ endtype
 type tGUI_Scene
   id as integer
   name as string
-  sprite as integer
   layers as tGUI_Layer[]
   visible as integer
   active as integer
@@ -121,13 +123,10 @@ global GUI_Controls       as tGUI_Control[]
 global GUI_State          as tGUI_State
 global GUI_Uuid           as integer[]
 
-global GUI_Splash_sprite  as integer
-global GUI_Splash_image   as integer
+global GUI_PlayingTheme   as integer = 0
 
-global GUI_PlayingMusic   as integer
-
-global GUI_DefaultSoundId as integer
-global GUI_DefaultImageId as integer
+global GUI_DefaultSound   as integer = 0
+global GUI_DefaultImage   as integer = 0
 
 
 global GUI_active_layer   as integer = 0
@@ -153,26 +152,23 @@ global GUI_cY as integer
  * ************************************************
 */
 function GUI_Init()
-  GUI_DefaultSoundId = LoadSoundOGG("click.ogg")
-  GUI_DefaultImageId = LoadImage("blank.png")
+  GUI_DefaultSound = LoadSoundOGG("click.ogg")
+  GUI_DefaultImage = LoadImage("blank.png")
 
   GUI_Screen = GUI_CreateScreen(GUI_NAME, GetFileExists(GUI_SAVED_JSON_FILE))
 
-  CreateSprite  ( GUI_BG_SPRITE, GUI_Screen.sprite)
-  SetSpriteSize ( GUI_BG_SPRITE, GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT )
-  FixSpriteToScreen (GUI_BG_SPRITE, 1)
   GUI_Initialise (GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT, GUI_Screen.name, 0)
 
-  if GUI_PlayingMusic = 1 then PlayMusicOGG( GUI_Screen.theme, 2)
+  if GUI_PlayingTheme = 1 then PlayMusicOGG( GUI_Screen.theme, 2)
 
   GUI_ShowSplashScreen("splash.png")
   GUI_HideSplashScreen(3) // 3 seconds
 
   if GUI_EDIT_MODE_ENABLED
     // Edit buttons
-    AddVirtualButton ( 1, GUI_SCREEN_WIDTH - 25,  25, 20 )
-    AddVirtualButton ( 2, GUI_SCREEN_WIDTH - 25,  50, 20 )
-    AddVirtualButton ( 3, GUI_SCREEN_WIDTH - 25,  75, 20 )
+    AddVirtualButton ( 1, GUI_SCREEN_WIDTH - 25,  25, 20 ) // Shows the edit grid
+    AddVirtualButton ( 2, GUI_SCREEN_WIDTH - 25,  50, 20 ) // Hide the edit grid
+    AddVirtualButton ( 3, GUI_SCREEN_WIDTH - 25,  75, 20 ) // Remove the stored json
   endif
 endfunction
 
@@ -183,24 +179,27 @@ endfunction
  * ************************************************
 */
 function GUI_Update()
-    if GUI_EDITING
-      GUI_DrawEditGrid()
-      GUI_Screen = GUI_EditHandler(GUI_Screen)
-    else
-      select GUI_active_scene
-        case GUI_READY
-          if(GetPointerPressed() = 1)
-            local spriteHit as integer
-            spriteHit = GetSpriteHit ( GetPointerX (), GetPointerY () )
-            GUI_EventHandler( spriteHit )
-          endif
-        endcase
-        case default
-          GUI_DrawScene(GUI_active_scene, GUI_active_layer)
-          GUI_active_scene = GUI_READY
-        endcase
-      endselect
-    endif
+    select GUI_EDITING
+      case 1
+        GUI_DrawEditGrid()
+        GUI_Screen = GUI_EditHandler(GUI_Screen)
+      endcase
+      case 0
+        select GUI_active_scene
+          case GUI_READY
+            if(GetPointerPressed() = 1)
+              local spriteHit as integer
+              spriteHit = GetSpriteHit ( GetPointerX (), GetPointerY () )
+              GUI_EventHandler( spriteHit )
+            endif
+          endcase
+          case default
+            GUI_DrawScene(GUI_active_scene, GUI_active_layer)
+            GUI_active_scene = GUI_READY
+          endcase
+        endselect
+      endcase
+    endselect
     if GetVirtualButtonState(1) = 1
       GUI_EDITING = 1
     endif
@@ -247,6 +246,7 @@ function GUI_CreateScreen(name as string, fromJSON as integer)
     local json_string as string
     json_string = GUI_loadJSON(GUI_SAVED_JSON_FILE)
     screen.fromJSON( json_string )
+    screen = GUI_InitialiseControls(screen)
   else
     // Get the data  from the local txt files
     screen = GUI_LoadScenes   ( screen, "gui_scenes.txt"   )
@@ -255,7 +255,9 @@ function GUI_CreateScreen(name as string, fromJSON as integer)
   screen.name   = name
   screen.theme  = LoadMusicOGG("theme.ogg")
   screen.sprite = LoadImage ("bg.png")
-  screen = GUI_InitialiseControls(screen)
+  CreateSprite  ( GUI_BG_SPRITE, screen.sprite)
+  SetSpriteSize ( GUI_BG_SPRITE, GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT ) // FIXME
+  FixSpriteToScreen (GUI_BG_SPRITE, 1)
 endfunction screen
 
 
@@ -269,8 +271,8 @@ function GUI_InitialiseControls(screen as tGUI_Screen)
     local i as integer
     local j as integer
     for i = 0 to screen.scenes.length
-      for j = 0 to screen.scenes[i].layers[GUI_State.layer].controls.length
-        GUI_InitialiseControl(screen.scenes[i].layers[GUI_State.layer].controls[j])
+      for j = 0 to screen.scenes[i].layers[0].controls.length
+        GUI_InitialiseControl(screen.scenes[i].layers[0].controls[j])
       next j
     next i
 endfunction screen
@@ -416,13 +418,14 @@ endfunction
  * **********************************************
 */
 function GUI_DrawScene(scene as integer, layer as integer)
+  Log("GUI_DrawScene " + Str(scene) + " " + Str(layer))
   if GUI_State.scene <> scene
     Log("Draw scene " + Str(scene))
     GUI_ResetLayer(GUI_State.scene, GUI_State.layer, 0)
   endif
-  
   GUI_ResetLayer(scene, layer, 1)
   GUI_DrawLayer(scene, layer)
+  
   
   GUI_State.scene = scene
   GUI_State.layer = layer
@@ -459,7 +462,7 @@ function GUI_ResetLayer(scene as integer, layer as integer, state as integer)
   local i as integer
   GUI_Screen.scenes[scene].layers[layer].depth = depth
   for i = 0 to GUI_Screen.scenes[scene].layers[layer].controls.length
-    GUI_ResetControl ( GUI_Screen.scenes[scene].layers[layer].controls[i] , state )
+    GUI_ResetControl ( GUI_Screen.scenes[scene].layers[layer].controls[i] , state, depth)
   next i
 endfunction
 
@@ -475,10 +478,10 @@ function GUI_InitialiseControl(control as tGUI_Control)
 
   select control._type
     case GUI_CONTROL_TYPE_SPRITE
-      control.sound = GUI_DefaultSoundId
+      control.sound = GUI_DefaultSound
       
       if control.label = ""
-        control.image = GUI_DefaultImageId
+        control.image = GUI_DefaultImage
       else
         control.image = LoadImage( control.label + ".png")
       endif
@@ -603,18 +606,15 @@ endfunction control
  * GUI_ResetControl
  * **********************************************
 */
-function GUI_ResetControl (control as tGUI_Control, state as integer)
+function GUI_ResetControl (control as tGUI_Control, state as integer, depth as integer)
     SetSpriteActive  ( control.sprite, state )
     SetSpriteVisible ( control.sprite, state )
-    SetSpriteDepth   ( control.sprite, GUI_DEPTH_SCREEN_CONTROLS )
-    if not state then SetSpriteDepth ( control.sprite, GUI_DEPTH_SCREEN_DEEP )
-    control.depth = GUI_DEPTH_SCREEN_DEEP
+    SetSpriteDepth   ( control.sprite, depth )
     if control._type = GUI_CONTROL_TYPE_TEXT
-      SetTextVisible (control.text, state)
-      SetTextDepth   ( control.text, GUI_DEPTH_SCREEN_CONTROLS )
-      control.depth = GUI_DEPTH_SCREEN_CONTROLS
-      if not state then SetTextDepth ( control.text, GUI_DEPTH_SCREEN_DEEP )
+      SetTextVisible ( control.text, state )
+      SetTextDepth   ( control.text, depth )
     endif
+    control.depth = depth
     control.active = state
     control.visible = state
 endfunction control
@@ -749,10 +749,10 @@ Endfunction
  * **********************************************
 */
 Function GUI_ShowSplashScreen(f as string)
-  GUI_Splash_image = LoadImage(f)
-	GUI_Splash_sprite = CreateSprite(GUI_Splash_image)
-  FixSpriteToScreen(GUI_Splash_sprite, 1)
-	SetSpriteSize(GUI_Splash_sprite, GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT) // FIXME
+  LoadImage(GUI_SPLASH_IMAGE, f)
+	CreateSprite(GUI_SPLASH_SPRITE, GUI_SPLASH_IMAGE)
+  FixSpriteToScreen(GUI_SPLASH_SPRITE, 1)
+	SetSpriteSize(GUI_SPLASH_SPRITE, GUI_SCREEN_WIDTH, GUI_SCREEN_HEIGHT)
 	Sync()
 Endfunction
 
@@ -769,8 +769,8 @@ Function GUI_HideSplashScreen(s as integer)
 		Sync()
 	endwhile
 	// Delete sprite and image
-	DeleteSprite ( GUI_Splash_sprite )
-	DeleteImage  ( GUI_Splash_image  )
+	DeleteSprite ( GUI_SPLASH_SPRITE )
+	DeleteImage  ( GUI_SPLASH_IMAGE  )
 Endfunction
 
 /* 
@@ -809,6 +809,9 @@ function GUI_EditHandler(screen as tGUI_Screen)
         GUI_cY = GetPointerY()
         control = GUI_GetControlBySprite(GUI_controlPicked)
         SetSpritePosition(GUI_controlPicked,GUI_pX,GUI_pY)
+        Print("ID: " + Str(control.id))
+        Print("SpriteId: " + Str(control.sprite))
+        Print(Str(GUI_pX) + ", " + Str(GUI_pY))
         if control.text > 0
           SetTextPosition(control.text, GUI_pX, GUI_pY)
         endif
