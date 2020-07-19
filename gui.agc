@@ -4,11 +4,6 @@
  * **********************************************
 */
 
-#constant GUI_NAME = "GUITemplate"
-
-#constant GUI_SCREEN_WIDTH = 300
-#constant GUI_SCREEN_HEIGHT = 533
-
 #constant GUI_BG_SPRITE = 1
 #constant GUI_SPLASH_SPRITE = 2
 
@@ -34,13 +29,19 @@
 #constant GUI_JSON_STATIC_FILE = 1
 #constant GUI_SAVED_JSON_FILE = "saved.json"
 
-#constant GUI_DEPTH_SCREEN_DEEP = 20
-#constant GUI_DEPTH_SCREEN_BACKGROUND = 10
-#constant GUI_DEPTH_SCREEN_LAYER = 5
-#constant GUI_DEPTH_SCREEN_CONTROLS = 0
+global GUI_NAME = "GUITemplate" //[IDEGUIADD],string,App Name
 
-#constant GUI_EDIT_CELL_SIZE = 25
-#constant GUI_EDIT_MODE_ENABLED = 1
+global GUI_SCREEN_WIDTH = 300 //[IDEGUIADD],integer,Width
+global GUI_SCREEN_HEIGHT = 533 //[IDEGUIADD],integer,Height
+
+global GUI_DEPTH_SCREEN_DEEP = 20 //[IDEGUIADD],integer,Screen Depth
+global GUI_DEPTH_SCREEN_BACKGROUND = 10 //[IDEGUIADD],integer,Background Depth
+global GUI_DEPTH_SCREEN_LAYER = 5 //[IDEGUIADD],integer,Layer Depth
+global GUI_DEPTH_SCREEN_CONTROLS = 0 //[IDEGUIADD],integer,Controls Depth
+
+global GUI_EDIT_CELL_SIZE = 25 //[IDEGUIADD],integer,Cell size
+global GUI_EDIT_MODE_ENABLED = 1 //[IDEGUIADD],integer,Edit Mode Enabled
+
 /* 
  * **********************************************
  * TYPES
