@@ -29,12 +29,12 @@
 #constant GUI_JSON_STATIC_FILE = 1
 #constant GUI_SAVED_JSON_FILE = "saved.json"
 
-global GUI_NAME = "GUITemplate" //[IDEGUIADD],string,App Name
+#constant GUI_NAME = "GUITemplate"
 
 global GUI_SCREEN_WIDTH = 300 //[IDEGUIADD],integer,Width
 global GUI_SCREEN_HEIGHT = 533 //[IDEGUIADD],integer,Height
 
-global GUI_DEPTH_SCREEN_DEEP = 20 //[IDEGUIADD],integer,Screen Depth
+#constant GUI_DEPTH_SCREEN_DEEP = 20
 global GUI_DEPTH_SCREEN_BACKGROUND = 10 //[IDEGUIADD],integer,Background Depth
 global GUI_DEPTH_SCREEN_LAYER = 5 //[IDEGUIADD],integer,Layer Depth
 global GUI_DEPTH_SCREEN_CONTROLS = 0 //[IDEGUIADD],integer,Controls Depth
